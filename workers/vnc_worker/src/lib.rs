@@ -9,6 +9,7 @@ use futures::FutureExt;
 use input_core::InputData;
 use input_core::KeyboardData;
 use input_core::MouseData;
+use input_core::MouseDataButtonMask;
 use mesh::message::MeshField;
 use mesh_worker::Worker;
 use mesh_worker::WorkerId;
@@ -23,6 +24,7 @@ use std::net::TcpListener;
 use std::pin::Pin;
 use std::time::Duration;
 use tracing_helpers::AnyhowValueExt;
+use vnc::PointerEventButtonMask;
 use vnc_worker_defs::VncParameters;
 
 /// A worker for running a VNC server.
@@ -254,9 +256,12 @@ impl vnc::Input for VncInput {
         }));
     }
 
-    fn mouse(&mut self, button_mask: u8, x: u16, y: u16) {
-        self.send
-            .send(InputData::Mouse(MouseData { button_mask, x, y }));
+    fn mouse(&mut self, button_mask: PointerEventButtonMask, x: u16, y: u16) {
+        self.send.send(InputData::Mouse(MouseData {
+            button_mask: MouseDataButtonMask::from_bits(button_mask.into_bits()),
+            x,
+            y,
+        }));
     }
 }
 

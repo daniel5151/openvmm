@@ -147,11 +147,24 @@ pub struct KeyEvent {
     pub key: u32_be,
 }
 
+#[bitfield_struct::bitfield(u8)]
+#[derive(AsBytes, FromBytes, FromZeroes)]
+pub struct PointerEventButtonMask {
+    pub left: bool,
+    pub middle: bool,
+    pub right: bool,
+    pub scroll_up: bool,
+    pub scroll_down: bool,
+    pub scroll_left: bool,
+    pub scroll_right: bool,
+    pub button8: bool,
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, AsBytes, FromBytes, FromZeroes)]
 pub struct PointerEvent {
     pub message_type: u8,
-    pub button_mask: u8,
+    pub button_mask: PointerEventButtonMask,
     pub x: u16_be,
     pub y: u16_be,
 }

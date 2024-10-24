@@ -7,6 +7,7 @@ use pal_async::local::block_with_io;
 use pal_async::socket::PolledSocket;
 use std::net::TcpListener;
 use vnc::Error;
+use vnc::PointerEventButtonMask;
 use zerocopy::AsBytes;
 
 fn pixel(r: u8, g: u8, b: u8) -> u32 {
@@ -33,7 +34,7 @@ struct IgnoreInput;
 
 impl vnc::Input for IgnoreInput {
     fn key(&mut self, _scancode: u16, _is_down: bool) {}
-    fn mouse(&mut self, _button_mask: u8, _x: u16, _y: u16) {}
+    fn mouse(&mut self, _button_mask: PointerEventButtonMask, _x: u16, _y: u16) {}
 }
 
 fn main() -> Result<(), Error> {

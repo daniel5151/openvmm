@@ -343,6 +343,7 @@ impl VmChipsetResult {
             name: "i8042".to_owned(),
             resource: I8042DeviceHandle {
                 keyboard_input: MultiplexedInputHandle { elevation: 0 }.into_resource(),
+                mouse_input: MultiplexedInputHandle { elevation: 0 }.into_resource(),
             }
             .into_resource(),
         });

@@ -12,6 +12,7 @@ vm_resource.workspace = true
 mesh.workspace = true
 
 futures.workspace = true
+bitfield-struct.workspace = true
 
 [lints]
 workspace = true

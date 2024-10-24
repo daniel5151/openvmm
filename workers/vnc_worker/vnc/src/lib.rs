@@ -16,6 +16,8 @@ use thiserror::Error;
 use zerocopy::AsBytes;
 use zerocopy::FromZeroes;
 
+pub use rfb::PointerEventButtonMask;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("unsupported protocol version")]
@@ -65,7 +67,7 @@ impl Updater {
 /// A trait used to handle VNC client input.
 pub trait Input {
     fn key(&mut self, scancode: u16, is_down: bool);
-    fn mouse(&mut self, button_mask: u8, x: u16, y: u16);
+    fn mouse(&mut self, button_mask: PointerEventButtonMask, x: u16, y: u16);
 }
 
 impl<F: Framebuffer, I: Input> Server<F, I> {

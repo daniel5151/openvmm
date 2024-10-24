@@ -19,6 +19,7 @@ use chipset_device::poll_device::PollDevice;
 use chipset_device::ChipsetDevice;
 use input_core::InputSource;
 use input_core::KeyboardData;
+use input_core::MouseData;
 use inspect::Inspect;
 use inspect::InspectMut;
 use open_enum::open_enum;
@@ -112,16 +113,18 @@ impl I8042Device {
         keyboard_interrupt: LineInterrupt,
         mouse_interrupt: LineInterrupt,
         mut keyboard_input: Box<dyn InputSource<KeyboardData>>,
+        mut mouse_input: Box<dyn InputSource<MouseData>>,
     ) -> Self {
-        // Activate the input immediately.
+        // Activate the inputs immediately.
         keyboard_input.set_active(true).await;
+        mouse_input.set_active(true).await;
         I8042Device {
             trigger_reset: reset,
             keyboard_interrupt,
             mouse_interrupt,
             state: I8042State::new(),
             keyboard: Ps2Keyboard::new(keyboard_input),
-            mouse: Ps2Mouse::new(),
+            mouse: Ps2Mouse::new(mouse_input),
             waker: None,
         }
     }
@@ -164,6 +167,7 @@ impl ChipsetDevice for I8042Device {
 impl PollDevice for I8042Device {
     fn poll_device(&mut self, cx: &mut Context<'_>) {
         self.keyboard.poll(cx);
+        self.mouse.poll(cx);
         self.load_device_output();
         self.waker = Some(cx.waker().clone());
     }
@@ -436,9 +440,11 @@ impl I8042Device {
             }
         }
 
-        if let Some(byte) = self.keyboard.output() {
-            self.write_output_byte(OutputBufferState::Keyboard, byte);
-            return true;
+        if !self.state.command_flag.disable_keyboard() {
+            if let Some(byte) = self.keyboard.output() {
+                self.write_output_byte(OutputBufferState::Keyboard, byte);
+                return true;
+            }
         }
 
         false

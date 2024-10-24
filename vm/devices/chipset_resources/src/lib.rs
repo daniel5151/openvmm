@@ -12,6 +12,7 @@ pub mod i8042 {
     use mesh::MeshPayload;
     use vm_resource::kind::ChipsetDeviceHandleKind;
     use vm_resource::kind::KeyboardInputHandleKind;
+    use vm_resource::kind::MouseInputHandleKind;
     use vm_resource::Resource;
     use vm_resource::ResourceId;
 
@@ -20,6 +21,8 @@ pub mod i8042 {
     pub struct I8042DeviceHandle {
         /// The keyboard input.
         pub keyboard_input: Resource<KeyboardInputHandleKind>,
+        /// The keyboard input.
+        pub mouse_input: Resource<MouseInputHandleKind>,
     }
 
     impl ResourceId<ChipsetDeviceHandleKind> for I8042DeviceHandle {
