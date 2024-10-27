@@ -16,6 +16,8 @@ hvlite_defs.workspace = true
 hvlite_pcat_locator.workspace = true
 membacking.workspace = true
 
+chipset.workspace = true
+
 # vmcore
 memory_range = { workspace = true, features = ["mesh"] }
 vm_topology = { workspace = true, features = ["mesh"] }

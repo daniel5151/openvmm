@@ -370,7 +370,7 @@ async fn post_mouse_packet(
 
     #[allow(clippy::needless_range_loop)] // rare case of a clippy misfire
     for i in 0..protocol::MOUSE_NUMBER_BUTTONS {
-        if ((1u8 << i) & mouse_data.button_mask) == (1u8 << i) {
+        if ((1u8 << i) & mouse_data.button_mask.into_bits()) == (1u8 << i) {
             if i < 3 {
                 mouse_packet.button_data |= button_masks[i];
             }

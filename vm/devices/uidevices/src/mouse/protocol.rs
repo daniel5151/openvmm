@@ -176,6 +176,7 @@ pub const REPORT_DESCRIPTOR: [u8; 67] = [
 pub const HID_MOUSE_BUTTON_LEFT: u8 = 0x01;
 pub const HID_MOUSE_BUTTON_RIGHT: u8 = 0x02;
 pub const HID_MOUSE_BUTTON_MIDDLE: u8 = 0x04;
+pub const HID_MOUSE_MAX_ABS_VALUE: u32 = 0x7FFFu32;
 
 pub const MOUSE_NUMBER_BUTTONS: usize = 5;
 

@@ -123,7 +123,7 @@ impl InputDistributor {
                         }
                         InputData::Mouse(input) => {
                             tracing::trace!(
-                                button_mask = input.button_mask,
+                                button_mask = ?input.button_mask,
                                 x = input.x,
                                 y = input.y,
                                 "forwarding mouse input"

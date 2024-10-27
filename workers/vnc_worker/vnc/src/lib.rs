@@ -16,6 +16,8 @@ use thiserror::Error;
 use zerocopy::AsBytes;
 use zerocopy::FromZeroes;
 
+pub use rfb::PointerEventButtonMask;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("unsupported protocol version")]
@@ -65,7 +67,7 @@ impl Updater {
 /// A trait used to handle VNC client input.
 pub trait Input {
     fn key(&mut self, scancode: u16, is_down: bool);
-    fn mouse(&mut self, button_mask: u8, x: u16, y: u16);
+    fn mouse(&mut self, button_mask: PointerEventButtonMask, x: u16, y: u16);
 }
 
 impl<F: Framebuffer, I: Input> Server<F, I> {
@@ -209,7 +211,7 @@ impl<F: Framebuffer, I: Input> Server<F, I> {
                                 y: 0.into(),
                                 width: width.into(),
                                 height: height.into(),
-                                encoding_type: rfb::ENCODING_TYPE_DESKTOP_SIZE.into(),
+                                encoding_type: rfb::EncodingType::DESKTOP_SIZE.into(),
                             }
                             .as_bytes(),
                         )
@@ -233,7 +235,7 @@ impl<F: Framebuffer, I: Input> Server<F, I> {
                                 y: 0.into(),
                                 width: width.into(),
                                 height: height.into(),
-                                encoding_type: rfb::ENCODING_TYPE_RAW.into(),
+                                encoding_type: rfb::EncodingType::RAW.into(),
                             }
                             .as_bytes(),
                         )
@@ -316,12 +318,17 @@ impl<F: Framebuffer, I: Input> Server<F, I> {
                         let mut encodings: Vec<zerocopy::U32<zerocopy::BE>> =
                             vec![0.into(); input.encoding_count.get().into()];
                         socket.read_exact(encodings.as_bytes_mut()).await?;
-                        if !encodings.contains(&rfb::ENCODING_TYPE_DESKTOP_SIZE.into()) {
+                        let encodings: Vec<rfb::EncodingType> =
+                            encodings.into_iter().map(Into::into).collect();
+
+                        tracing::debug!(?encodings, "client supported encodings");
+
+                        if !encodings.contains(&rfb::EncodingType::DESKTOP_SIZE) {
                             // Can't really operate without being able to change the desktop size dynamically.
                             return Err(Error::DesktopResizeNotSupported);
                         }
 
-                        if encodings.contains(&rfb::ENCODING_TYPE_QEMU_EXTENDED_KEY_EVENT.into()) {
+                        if encodings.contains(&rfb::EncodingType::QEMU_EXTENDED_KEY_EVENT) {
                             // Request qemu extended key events.
                             let mut msg = rfb::FramebufferUpdate {
                                 message_type: rfb::SC_MESSAGE_TYPE_FRAMEBUFFER_UPDATE,
@@ -336,7 +343,7 @@ impl<F: Framebuffer, I: Input> Server<F, I> {
                                     y: 0.into(),
                                     width: 0.into(),
                                     height: 0.into(),
-                                    encoding_type: rfb::ENCODING_TYPE_QEMU_EXTENDED_KEY_EVENT
+                                    encoding_type: rfb::EncodingType::QEMU_EXTENDED_KEY_EVENT
                                         .into(),
                                 }
                                 .as_bytes(),

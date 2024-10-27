@@ -33,9 +33,11 @@ declare_static_async_resolver! {
 #[allow(missing_docs)]
 pub enum ResolveI8042Error {
     #[error("failed to resolve keyboard input")]
-    ResolveKeyboardInput(#[source] ResolveError),
+    KeyboardInput(#[source] ResolveError),
+    #[error("failed to resolve mouse input")]
+    MouseInput(#[source] ResolveError),
     #[error("failed to resolve power request")]
-    ResolvePowerRequest(#[source] ResolveError),
+    PowerRequest(#[source] ResolveError),
 }
 
 #[async_trait]
@@ -58,21 +60,30 @@ impl AsyncResolveResource<ChipsetDeviceHandleKind, I8042DeviceHandle> for I8042R
         let keyboard_input = resolver
             .resolve(resource.keyboard_input, input.device_name)
             .await
-            .map_err(ResolveI8042Error::ResolveKeyboardInput)?;
+            .map_err(ResolveI8042Error::KeyboardInput)?;
+
+        let mouse_input = resolver
+            .resolve(resource.mouse_input, input.device_name)
+            .await
+            .map_err(ResolveI8042Error::MouseInput)?;
 
         let power_request = resolver
             .resolve::<PowerRequestHandleKind, _>(PlatformResource.into_resource(), ())
             .await
-            .map_err(ResolveI8042Error::ResolvePowerRequest)?;
+            .map_err(ResolveI8042Error::PowerRequest)?;
 
         let reset = Box::new(move || {
             power_request.power_request(PowerRequest::Reset);
         });
 
-        Ok(
-            I8042Device::new(reset, keyboard_interrupt, mouse_interrupt, keyboard_input.0)
-                .await
-                .into(),
+        Ok(I8042Device::new(
+            reset,
+            keyboard_interrupt,
+            mouse_interrupt,
+            keyboard_input.0,
+            mouse_input.0,
         )
+        .await
+        .into())
     }
 }

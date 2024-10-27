@@ -2590,6 +2590,7 @@ dependencies = [
  "build_rs_guest_arch",
  "cache_topology",
  "cfg-if",
+ "chipset",
  "chipset_device_resources",
  "chipset_legacy",
  "debug_ptr",
@@ -3123,6 +3124,7 @@ dependencies = [
 name = "input_core"
 version = "0.0.0"
 dependencies = [
+ "bitfield-struct",
  "futures",
  "mesh",
  "vm_resource",
@@ -8097,10 +8099,13 @@ dependencies = [
 name = "vnc"
 version = "0.0.0"
 dependencies = [
+ "bitfield-struct",
  "futures",
+ "open_enum",
  "pal_async",
  "socket2",
  "thiserror",
+ "tracing",
  "zerocopy",
 ]
 

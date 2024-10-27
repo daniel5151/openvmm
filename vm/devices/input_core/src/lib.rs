@@ -28,11 +28,28 @@ pub enum InputData {
 #[derive(Debug, Copy, Clone, MeshPayload)]
 pub struct MouseData {
     /// A bitmask of the buttons that are pressed.
-    pub button_mask: u8,
+    pub button_mask: MouseDataButtonMask,
     /// The absolute X location.
     pub x: u16,
     /// The absolute Y location.
     pub y: u16,
+}
+
+/// Button mask bitfield used in [`MouseData`].
+///
+/// DEVNOTE: at the moment, this is identical to the VNC RFB protocol
+/// PointerEvent button-mask field.
+#[bitfield_struct::bitfield(u8)]
+#[derive(MeshPayload)]
+pub struct MouseDataButtonMask {
+    pub left: bool,
+    pub middle: bool,
+    pub right: bool,
+    pub scroll_up: bool,
+    pub scroll_down: bool,
+    pub scroll_left: bool,
+    pub scroll_right: bool,
+    pub button8: bool,
 }
 
 /// A keyboard input event.
