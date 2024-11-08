@@ -822,7 +822,10 @@ impl InitializedVm {
             )
             .prefetch_ram(cfg.memory.prefetch_memory)
             .x86_legacy_support(
-                matches!(cfg.load_mode, LoadMode::Pcat { .. }) || cfg.chipset.with_hyperv_vga,
+                matches!(
+                    cfg.load_mode,
+                    LoadMode::Pcat { .. } | LoadMode::Seabios { .. }
+                ) || cfg.chipset.with_hyperv_vga,
             );
 
         #[cfg(all(windows, feature = "virt_whp"))]
@@ -1015,6 +1018,7 @@ impl InitializedVm {
         let mapper = memory_manager.device_memory_mapper();
 
         #[cfg_attr(not(guest_arch = "x86_64"), allow(unused_mut))]
+        let mut deps_hyperv_firmware_seabios = None;
         let mut deps_hyperv_firmware_pcat = None;
         let mut deps_hyperv_firmware_uefi = None;
         match &cfg.load_mode {
@@ -1096,8 +1100,8 @@ impl InitializedVm {
                 firmware,
                 boot_order,
             } => {
-                tracing::debug!(?firmware, "Loading BIOS firmware.");
-                let rom_builder = RomBuilder::new("bios".into(), Box::new(mapper.clone()));
+                tracing::debug!(?firmware, "Loading PCAT BIOS firmware.");
+                let rom_builder = RomBuilder::new("pcat-bios".into(), Box::new(mapper.clone()));
                 let rom = rom_builder.build_from_file_location(firmware)?;
                 // TODO: move mtrr replay to a resource.
                 let halt_vps = halt_vps.clone();
@@ -1166,6 +1170,14 @@ impl InitializedVm {
                         }
                     },
                 })
+            }
+            LoadMode::Seabios { firmware } => {
+                let rom_builder = RomBuilder::new("seabios".into(), Box::new(mapper.clone()));
+                let rom = rom_builder.build_from_file(firmware)?;
+
+                deps_hyperv_firmware_seabios = Some(dev::HyperVFirmwareSeabios {
+                    rom: Some(Box::new(rom)),
+                });
             }
             _ => {}
         };
@@ -1513,6 +1525,7 @@ impl InitializedVm {
                 deps_generic_pit,
                 deps_generic_psp,
                 deps_hyperv_firmware_pcat,
+                deps_hyperv_firmware_seabios,
                 deps_hyperv_firmware_uefi,
                 deps_hyperv_framebuffer,
                 deps_hyperv_guest_watchdog,
@@ -2394,7 +2407,11 @@ impl LoadedVmInner {
             #[cfg(guest_arch = "x86_64")]
             LoadMode::Pcat { .. } => {
                 let regs = super::vm_loaders::pcat::load_pcat(&self.gm, &self.mem_layout)?;
-
+                (regs, Vec::new())
+            }
+            #[cfg(guest_arch = "x86_64")]
+            LoadMode::Seabios { .. } => {
+                let regs = super::vm_loaders::seabios::load_seabios(&self.gm, &self.mem_layout)?;
                 (regs, Vec::new())
             }
             &LoadMode::Igvm {

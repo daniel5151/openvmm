@@ -12,6 +12,7 @@ use guestmem::MappableGuestMemory;
 use guestmem::MemoryMapper;
 use guestmem::UnmapRom;
 use hvlite_pcat_locator::RomFileLocation;
+use std::fs::File;
 use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
@@ -31,6 +32,14 @@ pub struct RomBuilder {
 impl RomBuilder {
     pub fn new(name: String, mapper: Box<dyn MemoryMapper>) -> Self {
         Self { name, mapper }
+    }
+
+    /// Constructs a ROM from the specified bytes in the specified file.
+    pub fn build_from_file(self, mut file: &File) -> std::io::Result<Rom> {
+        file.seek(SeekFrom::Start(0))?;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        self.build_from_slice(&buf)
     }
 
     /// Constructs a ROM from the specified bytes in the specified file.

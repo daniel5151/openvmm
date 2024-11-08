@@ -68,6 +68,8 @@ pub enum BaseChipsetType {
     HclHost,
     /// Unenlightened Linux VM, with a PCI bus and basic architectural devices.
     UnenlightenedLinuxDirect,
+    /// SeaBIOS firmware and Hyper-V Gen 1 PIIX4 chipset.
+    HypervSeaBios,
 }
 
 /// The machine architecture of the VM.
@@ -233,7 +235,7 @@ impl VmManifestBuilder {
         }
 
         match self.ty {
-            BaseChipsetType::HypervGen1 => {
+            BaseChipsetType::HypervGen1 | BaseChipsetType::HypervSeaBios => {
                 if self.arch != MachineArch::X86_64 {
                     return Err(Error(ErrorInner::UnsupportedArch));
                 }
@@ -252,7 +254,8 @@ impl VmManifestBuilder {
                     with_generic_pic: true,
                     with_generic_pit: true,
                     with_generic_psp: false,
-                    with_hyperv_firmware_pcat: true,
+                    with_hyperv_firmware_pcat: matches!(self.ty, BaseChipsetType::HypervGen1),
+                    with_hyperv_firmware_seabios: matches!(self.ty, BaseChipsetType::HypervSeaBios),
                     with_hyperv_firmware_uefi: false,
                     with_hyperv_framebuffer: !self.proxy_vga,
                     with_hyperv_guest_watchdog: false,
@@ -273,6 +276,9 @@ impl VmManifestBuilder {
                 if let Some(recv) = self.battery_status_recv {
                     result.attach_battery(self.arch, recv);
                 }
+                if matches!(self.ty, BaseChipsetType::HypervSeaBios) {
+                    result.attach_fw_cfg(FwCfgRegisterLayout::IoPort);
+                }
             }
             BaseChipsetType::UnenlightenedLinuxDirect => {
                 let is_x86 = matches!(self.arch, MachineArch::X86_64);
@@ -285,6 +291,7 @@ impl VmManifestBuilder {
                     with_generic_pic: is_x86,
                     with_generic_pit: is_x86,
                     with_generic_psp: self.psp,
+                    with_hyperv_firmware_seabios: false,
                     with_hyperv_firmware_pcat: false,
                     with_hyperv_firmware_uefi: false,
                     with_hyperv_framebuffer: self.framebuffer,
@@ -326,6 +333,7 @@ impl VmManifestBuilder {
                     with_generic_pit: false,
                     with_generic_psp: self.psp,
                     with_hyperv_firmware_pcat: false,
+                    with_hyperv_firmware_seabios: false,
                     with_hyperv_firmware_uefi: matches!(self.ty, BaseChipsetType::HypervGen2Uefi),
                     with_hyperv_framebuffer: self.framebuffer,
                     with_hyperv_guest_watchdog: self.guest_watchdog,

@@ -328,6 +328,7 @@ impl GenericPciBus {
         };
         tracelimit::warn_ratelimited!(
             address = %self.state.pio_addr_reg.address(),
+            offset = self.state.pio_addr_reg.register(),
             "pci config space {} operation error: {}",
             operation,
             error

@@ -1496,6 +1496,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "firmware_seabios"
+version = "0.0.0"
+dependencies = [
+ "chipset_device",
+ "generation_id",
+ "getrandom",
+ "guestmem",
+ "guid",
+ "inspect",
+ "memory_range",
+ "mesh",
+ "open_enum",
+ "static_assertions",
+ "thiserror 2.0.0",
+ "tracelimit",
+ "tracing",
+ "vm_topology",
+ "vmcore",
+ "zerocopy",
+]
+
+[[package]]
 name = "firmware_uefi"
 version = "0.0.0"
 dependencies = [
@@ -2628,6 +2650,7 @@ dependencies = [
  "disk_backend",
  "fdt",
  "firmware_pcat",
+ "firmware_seabios",
  "firmware_uefi",
  "firmware_uefi_custom_vars",
  "floppy",
@@ -8120,6 +8143,7 @@ dependencies = [
  "chipset_resources",
  "closeable_mutex",
  "firmware_pcat",
+ "firmware_seabios",
  "firmware_uefi",
  "floppy",
  "floppy_pcat_stub",

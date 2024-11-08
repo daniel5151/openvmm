@@ -2395,6 +2395,7 @@ async fn new_underhill_vm(
         deps_generic_pic,
         deps_generic_pit,
         deps_hyperv_firmware_pcat,
+        deps_hyperv_firmware_seabios: None,
         deps_hyperv_framebuffer: None,
         deps_hyperv_ide,
         deps_hyperv_vga: None,

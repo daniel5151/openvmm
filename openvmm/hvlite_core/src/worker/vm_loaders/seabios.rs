@@ -9,17 +9,20 @@ use vm_topology::memory::MemoryLayout;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("pcat loader error")]
-    Loader(#[source] loader::pcat::Error),
+    #[error("seabios loader error")]
+    Loader(#[source] loader::seabios::Error),
 }
 
-/// Load the PCAT BIOS.
+/// Load SeaBIOS.
 ///
-/// Since the BIOS is in ROM, this actually just returns the PCAT initial
+/// Since the BIOS is in ROM, this actually just returns the SeaBIOS initial
 /// registers.
 #[cfg_attr(not(guest_arch = "x86_64"), allow(dead_code))]
-pub fn load_pcat(gm: &GuestMemory, mem_layout: &MemoryLayout) -> Result<Vec<X86Register>, Error> {
+pub fn load_seabios(
+    gm: &GuestMemory,
+    mem_layout: &MemoryLayout,
+) -> Result<Vec<X86Register>, Error> {
     let mut loader = Loader::new(gm.clone(), mem_layout, hvdef::Vtl::Vtl0);
-    loader::pcat::load(&mut loader).map_err(Error::Loader)?;
+    loader::seabios::load(&mut loader).map_err(Error::Loader)?;
     Ok(loader.initial_regs())
 }

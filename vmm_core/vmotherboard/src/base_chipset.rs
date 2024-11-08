@@ -210,6 +210,7 @@ impl<'a> BaseChipsetBuilder<'a> {
             deps_generic_pit,
             deps_generic_psp: _, // not actually a device... yet
             deps_hyperv_firmware_pcat,
+            deps_hyperv_firmware_seabios,
             deps_hyperv_firmware_uefi,
             deps_hyperv_framebuffer,
             deps_hyperv_guest_watchdog,
@@ -679,6 +680,12 @@ impl<'a> BaseChipsetBuilder<'a> {
             })?;
         }
 
+        if let Some(options::dev::HyperVFirmwareSeabios { rom }) = deps_hyperv_firmware_seabios {
+            builder.arc_mutex_device("seabios").try_add(|_services| {
+                firmware_seabios::SeabiosDevice::new(firmware_seabios::SeabiosRuntimeDeps { rom })
+            })?;
+        }
+
         if let Some(options::dev::HyperVFramebufferDeps {
             fb_mapper,
             fb,
@@ -1057,6 +1064,7 @@ pub mod options {
 
             hyperv_firmware_pcat:        dev::HyperVFirmwarePcat,
             hyperv_firmware_uefi:        dev::HyperVFirmwareUefi,
+            hyperv_firmware_seabios:     dev::HyperVFirmwareSeabios,
             hyperv_framebuffer:          dev::HyperVFramebufferDeps,
             hyperv_guest_watchdog:       dev::HyperVGuestWatchdogDeps,
             hyperv_ide:                  dev::HyperVIdeDeps,
@@ -1314,6 +1322,13 @@ pub mod options {
             /// Trigger the partition to replay the initially-set MTRRs across
             /// all VPs.
             pub replay_mtrrs: Box<dyn Send + FnMut()>,
+        }
+
+        /// Hyper-V specific SeaBIOS Helper Device
+        pub struct HyperVFirmwareSeabios {
+            /// Interface to map seabios.bin into memory (or None, if that's
+            /// handled externally, by the platform itself)
+            pub rom: Option<Box<dyn guestmem::MapRom>>,
         }
 
         /// Hyper-V specific UEFI Helper Device

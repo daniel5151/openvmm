@@ -257,7 +257,7 @@ impl GuestMemoryBuilder {
         for range in &ram_ranges {
             let region = region_manager
                 .client()
-                .new_region("ram".into(), *range, RAM_PRIORITY)
+                .new_region(format!("ram-{range}"), *range, RAM_PRIORITY)
                 .await
                 .expect("regions cannot overlap yet");
 

@@ -207,8 +207,7 @@ fn load_pcat(gm: &GuestMemory, mem_layout: &MemoryLayout) -> Result<VpContext, E
 
     // PCAT image is already loaded into guest memory, so only register state
     // needs to get set
-    loader::pcat::load(&mut loader, None, mem_layout.max_ram_below_4gb())
-        .map_err(Error::PcatLoader)?;
+    loader::pcat::load(&mut loader).map_err(Error::PcatLoader)?;
 
     Ok(VpContext::Vbs(loader.initial_regs()))
 }

@@ -265,7 +265,7 @@ flags:
     pub debugcon: Option<DebugconSerialConfigCli>,
 
     /// boot UEFI firmware
-    #[clap(long, short = 'e')]
+    #[clap(long, conflicts_with_all(["pcat", "seabios"]))]
     pub uefi: bool,
 
     /// UEFI firmware file
@@ -294,12 +294,20 @@ flags:
     pub pcat_boot_order: Option<PcatBootOrderCli>,
 
     /// Boot with PCAT BIOS firmware and piix4 devices
-    #[clap(long, conflicts_with("uefi"))]
+    #[clap(long, conflicts_with_all(["uefi", "seabios"]))]
     pub pcat: bool,
 
     /// PCAT firmware file
     #[clap(long, requires("pcat"), value_name = "FILE")]
     pub pcat_firmware: Option<PathBuf>,
+
+    /// Boot with SeaBIOS firmware and piix4 devices
+    #[clap(long, conflicts_with_all(["uefi", "pcat"]))]
+    pub seabios: bool,
+
+    /// SeaBIOS firmware file
+    #[clap(long, requires("seabios"), value_name = "FILE")]
+    pub seabios_firmware: Option<PathBuf>,
 
     /// boot IGVM file
     #[clap(long, conflicts_with("kernel"), value_name = "FILE")]

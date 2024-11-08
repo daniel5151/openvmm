@@ -641,7 +641,7 @@ impl Emulator {
             | HeaderType00::BAR2
             | HeaderType00::BAR3
             | HeaderType00::BAR4
-            | HeaderType00::BAR5 => return IoResult::Err(IoError::InvalidRegister),
+            | HeaderType00::BAR5 => {}
 
             HeaderType00::LATENCY_INTERRUPT => {
                 self.state.persistent_state.interrupt_line_info = io_data;
@@ -714,8 +714,8 @@ impl Emulator {
             | HeaderType00::BAR3
             | HeaderType00::BAR4
             | HeaderType00::BAR5 => {
-                // These registers are not implemented
-                return IoResult::Err(IoError::InvalidRegister);
+                // These registers are not implemented, return PCI default BAR value of 0
+                0
             }
 
             HeaderType00::LATENCY_INTERRUPT => {

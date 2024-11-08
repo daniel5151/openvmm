@@ -669,6 +669,8 @@ fn vm_config_from_command_line(
             BaseChipsetType::HclHost
         } else if opt.pcat {
             BaseChipsetType::HypervGen1
+        } else if opt.seabios {
+            BaseChipsetType::HypervSeaBios
         } else if opt.uefi {
             BaseChipsetType::HypervGen2Uefi
         } else if opt.hv {
@@ -748,6 +750,20 @@ fn vm_config_from_command_line(
                 .pcat_boot_order
                 .map(|x| x.0)
                 .unwrap_or(DEFAULT_PCAT_BOOT_ORDER),
+        };
+    } else if opt.seabios {
+        if !is_x86 {
+            anyhow::bail!("seabios not supported on this architecture");
+        }
+        with_hv = true;
+
+        let firmware = fs_err::File::open(
+            opt.seabios_firmware
+                .as_deref()
+                .context("no --seabios-firmware provided")?,
+        )?;
+        load_mode = LoadMode::Seabios {
+            firmware: firmware.into(),
         };
     } else if opt.uefi {
         use hvlite_defs::config::UefiConsoleMode;
@@ -999,7 +1015,7 @@ fn vm_config_from_command_line(
         }
     };
 
-    let vga_firmware = if opt.pcat {
+    let vga_firmware = if opt.pcat || opt.seabios {
         Some(hvlite_pcat_locator::find_svga_bios(
             opt.vga_firmware.as_deref(),
         )?)

@@ -922,7 +922,12 @@ impl PciConfigSpace for IdeDevice {
                 HeaderType00::DEVICE_VENDOR => protocol::BX_PCI_ISA_BRIDGE_IDE_IDREG_VALUE,
                 HeaderType00::STATUS_COMMAND => self.bus_master_state.cmd_status_reg,
                 HeaderType00::CLASS_REVISION => protocol::BX_PCI_IDE_CLASS_WORD,
+                HeaderType00::BAR0 => 0,
+                HeaderType00::BAR1 => 0,
+                HeaderType00::BAR2 => 0,
+                HeaderType00::BAR3 => 0,
                 HeaderType00::BAR4 => self.bus_master_state.port_addr_reg,
+                HeaderType00::BAR5 => 0,
                 offset => {
                     tracing::debug!(?offset, "undefined type00 header read");
                     return IoResult::Err(IoError::InvalidRegister);

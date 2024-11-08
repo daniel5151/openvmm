@@ -107,6 +107,9 @@ pub enum LoadMode {
         firmware: RomFileLocation,
         boot_order: [PcatBootDevice; 4],
     },
+    Seabios {
+        firmware: File,
+    },
     Igvm {
         file: File,
         cmdline: String,
