@@ -2019,6 +2019,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "fw_cfg"
+version = "0.0.0"
+dependencies = [
+ "chipset_device",
+ "chipset_device_resources",
+ "fw_cfg_resources",
+ "inspect",
+ "vm_resource",
+ "vmcore",
+]
+
+[[package]]
+name = "fw_cfg_resources"
+version = "0.0.0"
+dependencies = [
+ "guestmem",
+ "mesh",
+ "vm_resource",
+]
+
+[[package]]
 name = "gdbstub"
 version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4454,6 +4475,7 @@ dependencies = [
  "disk_ramdisk",
  "disk_vhd1",
  "disk_vhdmp",
+ "fw_cfg",
  "gdma",
  "guest_crash_device",
  "guest_emulation_device",
@@ -7477,6 +7499,7 @@ name = "vm_manifest_builder"
 version = "0.0.0"
 dependencies = [
  "chipset_resources",
+ "fw_cfg_resources",
  "input_core",
  "mesh",
  "missing_dev_resources",

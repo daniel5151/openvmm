@@ -517,6 +517,10 @@ flags:
     /// set the uefi console mode
     #[clap(long)]
     pub uefi_console_mode: Option<UefiConsoleModeCli>,
+
+    /// enable the `fw_cfg` device
+    #[clap(long)]
+    pub fw_cfg: bool,
 }
 
 fn parse_fs_arg(opt: &str) -> Result<(String, String), &'static str> {
