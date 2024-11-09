@@ -2022,12 +2022,18 @@ dependencies = [
 name = "fw_cfg"
 version = "0.0.0"
 dependencies = [
+ "bitfield-struct",
  "chipset_device",
  "chipset_device_resources",
  "fw_cfg_resources",
  "inspect",
+ "open_enum",
+ "thiserror 2.0.0",
+ "tracelimit",
+ "tracing",
  "vm_resource",
  "vmcore",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2035,6 +2041,7 @@ name = "fw_cfg_resources"
 version = "0.0.0"
 dependencies = [
  "guestmem",
+ "inspect",
  "mesh",
  "vm_resource",
 ]
