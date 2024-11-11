@@ -154,6 +154,7 @@ impl FwCfg {
 
         let mut files: Vec<(String, FwCfgFile)> = Vec::new();
         files.push(("etc/e820".into(), FwCfgFile::Vec(gen_e820(&mem_layout))));
+        files.push(("etc/show-boot-menu".into(), FwCfgFile::Vec(vec![1])));
 
         Ok(FwCfg {
             register_layout,

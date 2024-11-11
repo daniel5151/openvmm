@@ -199,9 +199,12 @@ pub struct IdeFeatures {
 pub const IDENTIFY_DEVICE_BYTES: usize = 512;
 static_assertions::assert_eq_size!(IdeFeatures, [u8; IDENTIFY_DEVICE_BYTES]);
 
-// PCI
-pub const BX_PCI_ISA_BRIDGE_IDE_IDREG_VALUE: u32 = 0x71118086;
-pub const BX_PCI_IDE_CLASS_WORD: u32 = 0x01018001;
+pub const BX_PCI_ISA_BRIDGE_IDE_IDREG_VALUE: u32 = 0x7111_8086;
+// DEVNOTE: base=01 sub=01 prog_if=80, which means IDE device is in compat-mode
+//
+// see the PCI IDE Controller Specification for more info
+#[allow(clippy::unusual_byte_groupings)]
+pub const BX_PCI_IDE_CLASS_WORD: u32 = 0x010180_01;
 
 pub const PCI_CONFIG_STATUS_IO_SPACE_ENABLE_MASK: u32 = 0x01;
 pub const PCI_CONFIG_STATUS_BUS_MASTER_ENABLE_MASK: u32 = 0x04;

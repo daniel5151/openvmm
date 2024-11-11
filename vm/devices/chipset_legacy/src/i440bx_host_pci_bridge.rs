@@ -54,7 +54,9 @@ pub struct HostPciBridge {
 struct HostPciBridgeState {
     host_pci_dram1: u32,
     host_pci_dram2: u32,
+    #[inspect(hex)]
     pam_reg1: u32,
+    #[inspect(hex)]
     pam_reg2: u32,
     bios_scratch1: u32,
     bios_scratch2: u32,

@@ -926,7 +926,11 @@ impl PciConfigSpace for IdeDevice {
                 HeaderType00::BAR1 => 0,
                 HeaderType00::BAR2 => 0,
                 HeaderType00::BAR3 => 0,
-                HeaderType00::BAR4 => self.bus_master_state.port_addr_reg, // <-- this thing is causing seabios to choke
+                // not actually a BAR, since the device is running in PCI IDE
+                // compatibility mode, as opposed to PCI native mode.
+                //
+                // see the PCI IDE Controller Specification for more info
+                HeaderType00::BAR4 => self.bus_master_state.port_addr_reg,
                 HeaderType00::BAR5 => 0,
                 offset => {
                     tracing::debug!(?offset, "undefined type00 header read");

@@ -1467,7 +1467,9 @@ impl InitializedVm {
         let deps_hyperv_vga = if cfg.chipset.with_hyperv_vga {
             let vga_firmware = cfg.vga_firmware.as_ref().context("no VGA BIOS file")?;
             let rom_builder = RomBuilder::new("vga".into(), Box::new(mapper.clone()));
-            let rom = rom_builder.build_from_file_location(vga_firmware)?;
+            let rom = rom_builder
+                .build_from_file_location(vga_firmware)
+                .context("building vga rom")?;
 
             Some(dev::HyperVVgaDeps {
                 attached_to: pci_bus_id_piix4.clone(),
