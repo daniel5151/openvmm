@@ -2405,6 +2405,7 @@ async fn new_underhill_vm(
         deps_piix4_pci_isa_bridge,
         deps_piix4_pci_usb_uhci_stub,
         deps_piix4_power_management,
+        deps_qemu_fw_cfg: None,
         deps_underhill_vga_proxy,
         deps_winbond_super_io_and_floppy_stub,
         deps_winbond_super_io_and_floppy_full: None,

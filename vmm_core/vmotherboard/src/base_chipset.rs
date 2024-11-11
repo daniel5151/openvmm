@@ -223,6 +223,7 @@ impl<'a> BaseChipsetBuilder<'a> {
             deps_piix4_pci_isa_bridge,
             deps_piix4_pci_usb_uhci_stub,
             deps_piix4_power_management,
+            deps_qemu_fw_cfg,
             deps_underhill_vga_proxy,
             deps_winbond_super_io_and_floppy_stub,
             deps_winbond_super_io_and_floppy_full,
@@ -686,6 +687,12 @@ impl<'a> BaseChipsetBuilder<'a> {
             })?;
         }
 
+        if let Some(options::dev::QemuFwCfg { config }) = deps_qemu_fw_cfg {
+            builder.arc_mutex_device("fw_cfg").try_add(|_services| {
+                fw_cfg::FwCfg::new(foundation.untrusted_dma_memory.clone(), config)
+            })?;
+        }
+
         if let Some(options::dev::HyperVFramebufferDeps {
             fb_mapper,
             fb,
@@ -1079,6 +1086,8 @@ pub mod options {
             piix4_pci_usb_uhci_stub:     dev::Piix4PciUsbUhciStubDeps,
             piix4_power_management:      dev::Piix4PowerManagementDeps,
 
+            qemu_fw_cfg:                 dev::QemuFwCfg,
+
             underhill_vga_proxy:         dev::UnderhillVgaProxyDeps,
 
             winbond_super_io_and_floppy_stub: dev::WinbondSuperIoAndFloppyStubDeps,
@@ -1375,6 +1384,12 @@ pub mod options {
                 /// Host IO hotpath registration object
                 pub register_host_io_fastpath: Box<dyn vga_proxy::RegisterHostIoPortFastPath>,
             }
+        }
+
+        /// QEMU fw_cfg device
+        pub struct QemuFwCfg {
+            /// Bundle of static configuration required by the fw_cfg device
+            pub config: fw_cfg::FwCfgConfig,
         }
     }
 }

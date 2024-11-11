@@ -2047,25 +2047,17 @@ dependencies = [
  "bitfield-struct",
  "chipset_device",
  "chipset_device_resources",
- "fw_cfg_resources",
+ "guestmem",
  "inspect",
+ "memory_range",
  "open_enum",
  "thiserror 2.0.0",
  "tracelimit",
  "tracing",
  "vm_resource",
+ "vm_topology",
  "vmcore",
  "zerocopy",
-]
-
-[[package]]
-name = "fw_cfg_resources"
-version = "0.0.0"
-dependencies = [
- "guestmem",
- "inspect",
- "mesh",
- "vm_resource",
 ]
 
 [[package]]
@@ -2658,6 +2650,7 @@ dependencies = [
  "framebuffer",
  "futures",
  "futures-concurrency",
+ "fw_cfg",
  "get_resources",
  "getrandom",
  "guestmem",
@@ -4505,7 +4498,6 @@ dependencies = [
  "disk_ramdisk",
  "disk_vhd1",
  "disk_vhdmp",
- "fw_cfg",
  "gdma",
  "guest_crash_device",
  "guest_emulation_device",
@@ -7529,7 +7521,6 @@ name = "vm_manifest_builder"
 version = "0.0.0"
 dependencies = [
  "chipset_resources",
- "fw_cfg_resources",
  "input_core",
  "mesh",
  "missing_dev_resources",
@@ -8149,6 +8140,7 @@ dependencies = [
  "floppy_pcat_stub",
  "framebuffer",
  "futures",
+ "fw_cfg",
  "generation_id",
  "guest_watchdog",
  "guestmem",

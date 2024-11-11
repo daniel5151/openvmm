@@ -7,11 +7,13 @@ edition = "2021"
 rust-version.workspace = true
 
 [dependencies]
-chipset_device.workspace = true
 chipset_device_resources.workspace = true
-fw_cfg_resources.workspace = true
-vmcore.workspace = true
+chipset_device.workspace = true
+guestmem.workspace =true
+memory_range = { workspace = true, features = ["inspect"] }
 vm_resource.workspace = true
+vm_topology = { workspace = true, features = ["inspect"] }
+vmcore.workspace = true
 
 inspect.workspace = true
 open_enum.workspace = true

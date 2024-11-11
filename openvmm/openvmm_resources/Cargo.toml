@@ -39,7 +39,6 @@ disk_vhd1.workspace = true
 
 # Chipset devices
 chipset.workspace = true
-fw_cfg.workspace = true
 missing_dev.workspace = true
 serial_16550.workspace = true
 serial_debugcon.workspace = true

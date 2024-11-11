@@ -1021,6 +1021,7 @@ impl InitializedVm {
         let mut deps_hyperv_firmware_seabios = None;
         let mut deps_hyperv_firmware_pcat = None;
         let mut deps_hyperv_firmware_uefi = None;
+        let mut deps_qemu_fw_cfg = None;
         match &cfg.load_mode {
             LoadMode::Uefi { .. } => {
                 deps_hyperv_firmware_uefi = Some(dev::HyperVFirmwareUefi {
@@ -1178,6 +1179,14 @@ impl InitializedVm {
                 deps_hyperv_firmware_seabios = Some(dev::HyperVFirmwareSeabios {
                     rom: Some(Box::new(rom)),
                 });
+
+                deps_qemu_fw_cfg = Some(dev::QemuFwCfg {
+                    config: fw_cfg::FwCfgConfig {
+                        register_layout: fw_cfg::FwCfgRegisterLayout::IoPort,
+                        processor_topology: processor_topology.clone(),
+                        mem_layout: mem_layout.clone(),
+                    },
+                })
             }
             _ => {}
         };
@@ -1538,6 +1547,7 @@ impl InitializedVm {
                 deps_piix4_pci_isa_bridge,
                 deps_piix4_pci_usb_uhci_stub,
                 deps_piix4_power_management,
+                deps_qemu_fw_cfg,
                 deps_underhill_vga_proxy: None,
                 deps_winbond_super_io_and_floppy_stub: None,
                 deps_winbond_super_io_and_floppy_full,

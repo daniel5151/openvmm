@@ -705,13 +705,6 @@ fn vm_config_from_command_line(
             cfg.port,
         );
     }
-    if opt.fw_cfg {
-        if is_x86 {
-            chipset = chipset.with_fw_cfg_x86();
-        } else {
-            anyhow::bail!("adding fw_cfg on ARM is currently unsupported")
-        }
-    }
 
     let VmChipsetResult {
         chipset,

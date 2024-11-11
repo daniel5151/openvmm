@@ -17,15 +17,61 @@ use chipset_device::io::IoResult;
 use chipset_device::mmio::MmioIntercept;
 use chipset_device::pio::PortIoIntercept;
 use chipset_device::ChipsetDevice;
-use fw_cfg_resources::FwCfgFile;
-use fw_cfg_resources::FwCfgRegisterLayout;
+use guestmem::GuestMemory;
+use inspect::Inspect;
 use inspect::InspectMut;
 use spec::Selector;
+use std::fs::File;
 use thiserror::Error;
+use vm_topology::memory::MemoryLayout;
+use vm_topology::processor::x86::X86Topology;
+use vm_topology::processor::ProcessorTopology;
 use vmcore::device_state::ChangeDeviceState;
 use zerocopy::AsBytes;
 
-pub mod resolver;
+mod spec;
+
+/// `fw_cfg` device static configuration data.
+#[derive(Debug, Inspect)]
+pub struct FwCfgConfig {
+    /// Register layout of the `fw_cfg` device
+    pub register_layout: FwCfgRegisterLayout,
+    /// Number of VCPUs
+    pub processor_topology: ProcessorTopology<X86Topology>,
+    /// The VM's memory layout
+    pub mem_layout: MemoryLayout,
+}
+
+/// File registered with the `fw_cfg` device
+#[derive(Inspect)]
+#[inspect(tag = "kind")]
+pub enum FwCfgFile {
+    /// String
+    String(#[inspect(rename = "contents")] String),
+    /// Blob
+    Vec(#[inspect(rename = "contents")] Vec<u8>),
+    /// File (prefer this when registering large files)
+    File(#[inspect(rename = "contents")] File),
+}
+
+/// The base address for the `fw_cfg` device, either an MMIO address or an IO
+/// port.
+#[derive(Copy, Clone, Debug, Inspect)]
+#[inspect(tag = "kind")]
+pub enum FwCfgRegisterLayout {
+    /// Fixed x86 IO ports.
+    ///
+    /// - Selector: 0x510
+    /// - Data: 0x511
+    /// - DMA: 0x514
+    IoPort,
+    /// Relocatable MMIO base address.
+    ///
+    /// - Selector: base + 8 (2 bytes)
+    /// - Data: base + 0 (8 bytes)
+    /// - DMA: base + 16 (8 bytes)
+    Mmio(#[inspect(rename = "base")] u64),
+}
 
 enum FwCfgRegisterLayoutRegions {
     IoPort([(&'static str, std::ops::RangeInclusive<u16>); 2]),
@@ -41,13 +87,13 @@ pub struct FwCfg {
     register_layout_regions: FwCfgRegisterLayoutRegions,
     #[inspect(with = "|v| inspect::iter_by_key(v.iter().map(|(k, v)| (k, v)))")]
     files: Vec<(String, FwCfgFile)>,
-    // response for Selector::FILE_DIR, computed once during init based on the
-    // provided file set.
-    file_dir_buf: Vec<u8>,
-    id_bitmap: u32,
+
+    // Runtime deps
+    gm: GuestMemory,
 
     // Runtime book-keeping
-    // ... none yet ...
+    buf: Vec<u8>,
+    buf_valid: bool,
 
     // Volatile state
     selector: Selector,
@@ -72,7 +118,13 @@ pub enum Error {
 
 impl FwCfg {
     /// Create the `fw_cfg` device.
-    pub fn new(register_layout: FwCfgRegisterLayout) -> Result<FwCfg, Error> {
+    pub fn new(gm: GuestMemory, config: FwCfgConfig) -> Result<FwCfg, Error> {
+        let FwCfgConfig {
+            register_layout,
+            processor_topology,
+            mem_layout,
+        } = config;
+
         let register_layout_regions = match register_layout {
             FwCfgRegisterLayout::IoPort => FwCfgRegisterLayoutRegions::IoPort([
                 (
@@ -100,74 +152,20 @@ impl FwCfg {
             ]),
         };
 
-        // TODO: figure out the right API for actually registering files.
-        //
-        // during bringup - just hard-code files on an as-needed basis
         let mut files: Vec<(String, FwCfgFile)> = Vec::new();
-
-        let mut file_dir_buf = Vec::new();
-        file_dir_buf.extend_from_slice(
-            spec::FileDirFiles {
-                count: (files.len() as u32).into(),
-            }
-            .as_bytes(),
-        );
-        for (idx, (name, content)) in files.iter().enumerate() {
-            let name_buf = {
-                if !name.is_ascii() {
-                    return Err(Error::FilenameNotAscii(name.clone()));
-                }
-
-                if name.len() > 55 {
-                    return Err(Error::FilenameTooLong(name.clone()));
-                }
-
-                let mut name_buf = [0; 56];
-                name_buf[..name.len()].copy_from_slice(name.as_bytes());
-                name_buf
-            };
-
-            let size = {
-                let size = match content {
-                    FwCfgFile::String(s) => s.len() as u64,
-                    FwCfgFile::Vec(v) => v.len() as u64,
-                    FwCfgFile::File(file) => file
-                        .metadata()
-                        .map_err(|e| Error::MetadataIo(name.clone(), e))?
-                        .len(),
-                };
-
-                if size > u32::MAX as u64 {
-                    return Err(Error::FileTooBig(name.clone()));
-                }
-
-                size as u32
-            };
-
-            file_dir_buf.extend_from_slice(
-                spec::FileDirFile {
-                    size: size.into(),
-                    select: (Selector::BASE_FILE.0 + idx as u16).into(),
-                    reserved: 0.into(),
-                    name: name_buf,
-                }
-                .as_bytes(),
-            )
-        }
-
-        let id_bitmap = spec::IdBitmap::new()
-            .with_trad(true)
-            .with_dma(false) // DMA isn't implemented yet
-            .into_bits();
+        files.push(("etc/e820".into(), FwCfgFile::Vec(gen_e820(&mem_layout))));
 
         Ok(FwCfg {
             register_layout,
             register_layout_regions,
-            id_bitmap,
             files,
-            file_dir_buf,
 
-            selector: Selector::SIGNATURE,
+            gm,
+
+            buf: Vec::new(),
+            buf_valid: false,
+
+            selector: Selector(u16::MAX),
             data_offset: 0,
             dma_lo: 0,
             dma_hi: 0,
@@ -175,28 +173,74 @@ impl FwCfg {
     }
 
     fn write_selector(&mut self, data: u16) -> IoResult {
-        self.selector = Selector(data);
+        let new_selector = Selector(data);
+        let old_selector = self.selector;
+
+        self.selector = new_selector;
         self.data_offset = 0;
-        tracing::debug!(selector = ?self.selector, "set selector");
+        self.buf_valid = new_selector == old_selector;
+
+        tracing::debug!(?new_selector, "set selector");
+
         IoResult::Ok
     }
 
     fn read_data(&mut self, data: &mut [u8]) -> IoResult {
-        let buf = match self.selector {
-            Selector::SIGNATURE => b"QEMU",
-            Selector::ID => self.id_bitmap.as_bytes(),
-            Selector::FILE_DIR => &self.file_dir_buf,
-            Selector(n) if !(Selector::BASE_FILE.0..Selector::BASE_ARCH_LOCAL.0).contains(&n) => {
-                tracing::debug!(selector = ?self.selector, "accessing legacy fw_cfg selector");
-                &[]
-            }
-            Selector(_file_id) => &[],
-        };
+        if !self.buf_valid {
+            self.buf.clear();
 
-        let buf_remaining = buf.len().saturating_sub(self.data_offset);
+            match self.selector {
+                Selector::SIGNATURE => self.buf.extend_from_slice(b"QEMU"),
+                Selector::ID => {
+                    self.buf.extend_from_slice(
+                        spec::IdBitmap::new()
+                            .with_trad(true)
+                            .with_dma(false) // DMA isn't implemented yet
+                            .into_bits()
+                            .as_bytes(),
+                    )
+                }
+                Selector::FILE_DIR => {
+                    if let Err(err) = gen_file_dir(&mut self.buf, &self.files) {
+                        tracelimit::error_ratelimited!(
+                            err = &err as &dyn std::error::Error,
+                            "error constructing file dir listing"
+                        );
+                        self.buf_valid = false;
+                        return IoResult::Ok;
+                    }
+                }
+                Selector(n)
+                    if !(Selector::BASE_FILE.0..Selector::BASE_ARCH_LOCAL.0).contains(&n) =>
+                {
+                    tracing::debug!(selector = ?self.selector, "accessing legacy fw_cfg selector");
+                }
+                Selector(file_id) => {
+                    let Some((name, data)) =
+                        self.files.get((file_id - Selector::BASE_FILE.0) as usize)
+                    else {
+                        tracelimit::warn_ratelimited!(file_id, "invalid file");
+                        self.buf_valid = false;
+                        return IoResult::Ok;
+                    };
+
+                    tracing::debug!(file_id, name, "init read buf");
+
+                    match data {
+                        FwCfgFile::String(s) => self.buf.extend_from_slice(s.as_bytes()),
+                        FwCfgFile::Vec(v) => self.buf.extend_from_slice(v),
+                        FwCfgFile::File(_file) => todo!(),
+                    }
+                }
+            };
+
+            self.buf_valid = true;
+        }
+
+        let buf_remaining = self.buf.len().saturating_sub(self.data_offset);
         let n = buf_remaining.min(data.len());
         if n > 0 {
-            data[..n].copy_from_slice(&buf[self.data_offset..self.data_offset + n]);
+            data[..n].copy_from_slice(&self.buf[self.data_offset..self.data_offset + n]);
         }
         self.data_offset += n;
 
@@ -228,9 +272,29 @@ impl FwCfg {
 
         let gpa = ((self.dma_hi as u64) << 4) | self.dma_lo as u64;
 
-        // TODO: actually trigger the DMA operation when the lo register is
-        // written to
-        let _ = gpa;
+        let access = match self.gm.read_plain::<spec::DmaAccess>(gpa) {
+            Ok(v) => v,
+            Err(err) => {
+                tracelimit::error_ratelimited!(
+                    err = &err as &dyn std::error::Error,
+                    "failed to read DMA access struct from guest-mem"
+                );
+                return IoResult::Ok;
+            }
+        };
+
+        let spec::DmaAccess {
+            control,
+            length,
+            address,
+        } = access;
+
+        let control = spec::DmaControl::from_bits(control.get());
+        let length = length.get() as usize;
+        let address = address.get();
+
+        // TODO: actually kick off the DMA
+        let _ = (control, length, address);
         todo!()
     }
 }
@@ -360,78 +424,6 @@ open_enum::open_enum! {
     }
 }
 
-mod spec {
-    use bitfield_struct::bitfield;
-    use inspect::Inspect;
-    use packed_nums::*;
-    use zerocopy::AsBytes;
-    use zerocopy::FromBytes;
-    use zerocopy::FromZeroes;
-
-    #[allow(non_camel_case_types)]
-    mod packed_nums {
-        pub type u16_be = zerocopy::U16<zerocopy::BigEndian>;
-        pub type u32_be = zerocopy::U32<zerocopy::BigEndian>;
-    }
-
-    #[derive(Inspect)]
-    #[bitfield(u32)]
-    pub struct IdBitmap {
-        pub trad: bool,
-        pub dma: bool,
-        #[bits(30)]
-        pub _reserved: u32,
-    }
-
-    open_enum::open_enum! {
-        #[derive(Inspect)]
-        #[inspect(debug)]
-        pub enum Selector: u16 {
-            SIGNATURE = 0x0,
-            ID        = 0x1,
-            FILE_DIR  = 0x19,
-
-            // deprecated variants, pulled from SeaBIOS source code
-            UUID      = 0x02,
-            NOGRAPHIC = 0x04,
-            NUMA      = 0x0d,
-            BOOT_MENU = 0x0e,
-            NB_CPUS   = 0x05,
-            MAX_CPUS  = 0x0f,
-            X86_ACPI_TABLES    = Self::BASE_ARCH_LOCAL.0,
-            X86_SMBIOS_ENTRIES = Self::BASE_ARCH_LOCAL.0 + 1,
-            X86_IRQ0_OVERRIDE  = Self::BASE_ARCH_LOCAL.0 + 2,
-            X86_E820_TABLE     = Self::BASE_ARCH_LOCAL.0 + 3,
-
-            // offsets
-            BASE_FILE = 0x20,
-            BASE_ARCH_LOCAL = 0x8000,
-        }
-    }
-
-    #[derive(AsBytes, FromBytes, FromZeroes)]
-    #[repr(C)]
-    pub struct FileDirFiles {
-        /// Number of entries
-        pub count: u32_be,
-        // ...followed by `count` FileDirFile entries
-    }
-
-    /// Individual file entry, exactly 64 bytes total
-    #[derive(Clone, Debug, AsBytes, FromBytes, FromZeroes)]
-    #[repr(C)]
-    pub struct FileDirFile {
-        /// Size of referenced fw_cfg item
-        pub size: u32_be,
-        /// Selector key of fw_cfg item
-        pub select: u16_be,
-        /// Reserved field for alignment
-        pub reserved: u16_be,
-        /// fw_cfg item name, NUL-terminated ASCII (56 bytes)
-        pub name: [u8; 56],
-    }
-}
-
 mod save_restore {
     use super::*;
     use vmcore::save_restore::NoSavedState;
@@ -450,4 +442,94 @@ mod save_restore {
             Ok(())
         }
     }
+}
+
+fn gen_file_dir(buf: &mut Vec<u8>, files: &[(String, FwCfgFile)]) -> Result<(), Error> {
+    buf.extend_from_slice(
+        spec::FileDirFiles {
+            count: (files.len() as u32).into(),
+        }
+        .as_bytes(),
+    );
+
+    for (idx, (name, content)) in files.iter().enumerate() {
+        let name_buf = {
+            if !name.is_ascii() {
+                return Err(Error::FilenameNotAscii(name.clone()));
+            }
+
+            if name.len() > 55 {
+                return Err(Error::FilenameTooLong(name.clone()));
+            }
+
+            let mut name_buf = [0; 56];
+            name_buf[..name.len()].copy_from_slice(name.as_bytes());
+            name_buf
+        };
+
+        let size = {
+            let size = match content {
+                FwCfgFile::String(s) => s.len() as u64,
+                FwCfgFile::Vec(v) => v.len() as u64,
+                FwCfgFile::File(file) => file
+                    .metadata()
+                    .map_err(|e| Error::MetadataIo(name.clone(), e))?
+                    .len(),
+            };
+
+            if size > u32::MAX as u64 {
+                return Err(Error::FileTooBig(name.clone()));
+            }
+
+            size as u32
+        };
+
+        buf.extend_from_slice(
+            spec::FileDirFile {
+                size: size.into(),
+                select: (Selector::BASE_FILE.0 + idx as u16).into(),
+                reserved: 0.into(),
+                name: name_buf,
+            }
+            .as_bytes(),
+        );
+    }
+    Ok(())
+}
+
+fn gen_e820(mem_layout: &MemoryLayout) -> Vec<u8> {
+    use zerocopy::AsBytes;
+    use zerocopy::FromBytes;
+    use zerocopy::FromZeroes;
+
+    enum E820ReservationType {
+        Ram = 1,
+        Reserved = 2,
+    }
+
+    #[derive(FromBytes, AsBytes, FromZeroes)]
+    #[repr(C, packed)]
+    struct E820Reservation {
+        pub address: u64,
+        pub length: u64,
+        pub ty: u32,
+        // pub _padding: u32,
+    };
+
+    let mut v = Vec::new();
+
+    for range in mem_layout.ram() {
+        tracing::debug!(?range, "reporting e820 ram range");
+        v.extend_from_slice(
+            E820Reservation {
+                address: range.range.start(),
+                length: range.range.len(),
+                ty: E820ReservationType::Ram as u32,
+                // _padding: 0,
+            }
+            .as_bytes(),
+        );
+    }
+
+    v
 }

@@ -28,9 +28,10 @@ vm_resource.workspace = true
 chipset_legacy.workspace = true
 chipset.workspace = true
 chipset_resources.workspace = true
-firmware_seabios.workspace = true
 firmware_pcat.workspace = true
+firmware_seabios.workspace = true
 firmware_uefi.workspace = true
+fw_cfg.workspace = true
 uefi_nvram_storage = { workspace = true, features = ["inspect"] }
 framebuffer.workspace = true
 floppy = { optional = true, workspace = true }

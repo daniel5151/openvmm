@@ -18,8 +18,6 @@ use chipset_resources::battery::BatteryDeviceHandleAArch64;
 use chipset_resources::battery::BatteryDeviceHandleX64;
 use chipset_resources::battery::HostBatteryUpdate;
 use chipset_resources::i8042::I8042DeviceHandle;
-use fw_cfg_resources::FwCfgHandle;
-use fw_cfg_resources::FwCfgRegisterLayout;
 use input_core::MultiplexedInputHandle;
 use missing_dev_resources::MissingDevHandle;
 use serial_16550_resources::Serial16550DeviceHandle;
@@ -47,7 +45,6 @@ pub struct VmManifestBuilder {
     guest_watchdog: bool,
     psp: bool,
     debugcon: Option<(Resource<SerialBackendHandle>, u16)>,
-    fw_cfg: Option<FwCfgRegisterLayout>,
 }
 
 /// The VM's base chipset type, which determines the set of core devices (such
@@ -122,14 +119,7 @@ impl VmManifestBuilder {
             guest_watchdog: false,
             psp: false,
             debugcon: None,
-            fw_cfg: None,
         }
-    }
-
-    /// Enable the `fw_cfg` device on x86, at its standard IO port location.
-    pub fn with_fw_cfg_x86(mut self) -> Self {
-        self.fw_cfg = Some(FwCfgRegisterLayout::IoPort);
-        self
     }
 
     /// Enable serial ports (of a type determined by the chipset type), backed
@@ -230,10 +220,6 @@ impl VmManifestBuilder {
             }
         }
 
-        if let Some(register_layout) = self.fw_cfg {
-            result.attach_fw_cfg(register_layout);
-        }
-
         match self.ty {
             BaseChipsetType::HypervGen1 | BaseChipsetType::HypervSeaBios => {
                 if self.arch != MachineArch::X86_64 {
@@ -268,6 +254,7 @@ impl VmManifestBuilder {
                     with_piix4_pci_isa_bridge: true,
                     with_piix4_pci_usb_uhci_stub: true,
                     with_piix4_power_management: true,
+                    with_qemu_fw_cfg: matches!(self.ty, BaseChipsetType::HypervSeaBios),
                     with_underhill_vga_proxy: self.proxy_vga,
                     with_winbond_super_io_and_floppy_stub: self.stub_floppy,
                     with_winbond_super_io_and_floppy_full: !self.stub_floppy,
@@ -275,9 +262,6 @@ impl VmManifestBuilder {
                 result.attach_missing_arch_ports(self.arch, false);
                 if let Some(recv) = self.battery_status_recv {
                     result.attach_battery(self.arch, recv);
-                }
-                if matches!(self.ty, BaseChipsetType::HypervSeaBios) {
-                    result.attach_fw_cfg(FwCfgRegisterLayout::IoPort);
                 }
             }
             BaseChipsetType::UnenlightenedLinuxDirect => {
@@ -305,6 +289,7 @@ impl VmManifestBuilder {
                     with_piix4_pci_isa_bridge: false,
                     with_piix4_pci_usb_uhci_stub: false,
                     with_piix4_power_management: false,
+                    with_qemu_fw_cfg: false,
                     with_underhill_vga_proxy: false,
                     with_winbond_super_io_and_floppy_stub: false,
                     with_winbond_super_io_and_floppy_full: false,
@@ -346,6 +331,7 @@ impl VmManifestBuilder {
                     with_piix4_pci_isa_bridge: false,
                     with_piix4_pci_usb_uhci_stub: false,
                     with_piix4_power_management: false,
+                    with_qemu_fw_cfg: false,
                     with_underhill_vga_proxy: false,
                     with_winbond_super_io_and_floppy_stub: false,
                     with_winbond_super_io_and_floppy_full: false,
@@ -411,15 +397,6 @@ impl VmChipsetResult {
                 }
                 .into_resource(),
             },
-        });
-
-        self
-    }
-
-    fn attach_fw_cfg(&mut self, register_layout: FwCfgRegisterLayout) -> &mut Self {
-        self.chipset_devices.push(ChipsetDeviceHandle {
-            name: "fw_cfg".to_owned(),
-            resource: FwCfgHandle { register_layout }.into_resource(),
         });
 
         self
